@@ -1,8 +1,8 @@
 # <<<<<<<<<<<<>>>>>>>>>>>><<<<<<<<<<<<>>>>>>>>>>>><<<<<<<<<<<<>>>>>>>>>>>>
 #
-# Project: 
+# Project: MS
 #
-# Script purpose:
+# Script purpose: tentativa de listagem dos municípios no bioma amazônia
 # 
 # Autor: Luiz Eduardo Medeiros da Rocha
 #
@@ -10,9 +10,9 @@
 #
 # Copyright: 
 #
-# Repository: 
+# Repository: https://github.com/luizrocha1/MS.git
 #
-# E-mail: luiz.rocha9900@gmail.com
+# E-mail: luiz.rocha9900@gmail.com / luizrocha99@usp.br
 #
 # <<<<<<<<<<<<>>>>>>>>>>>>
 #
