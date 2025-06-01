@@ -2,7 +2,7 @@
 #
 # Project: MS
 #
-# Script purpose: data BSTS
+# Script purpose: collect and adjust BSTS data
 # 
 # Autor: Luiz Eduardo Medeiros da Rocha
 #
@@ -33,7 +33,7 @@
  # Install and load packages ----
  
  if (!require(install.load)) install.packages(install.load)
- install.load::install_load("tidyverse", "fredr", "readxl") 
+ install.load::install_load("tidyverse", "fredr", "readxl", "seasonal") 
  
  
  # Fred data ------
@@ -83,8 +83,7 @@
    rename(RNB = `29027 - Households gross disposable national income (deflated by IPCA, seasonally adjusted, 3-months moving average) - R$ (million)`) %>%
    mutate(date = seq(as.Date("2003-03-01"), 
                      as.Date("2025-03-01"), by = "months")) %>%
-   select(date, RNB) %>%
-   filter(year(date) >= 2010 & ymd(date) <= "2020-03-01")
+   select(date, RNB)
  
  # Fertilizer index data ------
  
@@ -100,8 +99,7 @@
   biodiesel <- 
     read_excel("data/biodiesel.xlsx", 
                           col_types = c("date", "numeric")) %>%
-    mutate(date = ymd(date)) %>%
-    filter(year(date) >= 2010 & ymd(date) <= "2020-03-01")
+    mutate(date = ymd(date))
   
   # IPCA data ------
     
@@ -120,5 +118,87 @@
     mutate(date = seq(as.Date("2010-01-01"), 
                       as.Date("2020-03-01"), by = "months")) %>%
     select(date, ipca_livre) 
+  
+  # Merging data ------
+  
+  cambio <- STI_20250527183135520$`3698 - Exchange rate - Free - United States dollar (sale) - period average - 3698 - c.m.u./US$`[1:123]
+  
+  df_BSTS <- 
+    left_join(soja_ipca, soja_grão) %>%
+    left_join(., soja_óleo) %>%
+    left_join(., soja_farelo) %>%
+    left_join(., RNDBF) %>%
+    left_join(., biodiesel) %>%
+    left_join(., IPCA_alimentos) %>%
+    left_join(., IPCA_livre) %>%
+    left_join(., fertilizantes) %>%
+    mutate(
+      across(
+        starts_with("p_"),
+        ~ .x * cambio
+      )
+    )
+    
+  # Seasonal Adjustment -----
+  
+  df_adjs <-
+    df_BSTS %>%
+    pivot_longer(
+      cols = -date,
+      names_to = "série",
+      values_to = "values") %>%
+    group_by(série) %>%
+    nest() %>%
+    mutate(
+      ts_format = map(data, ~ ts(.x$values, 
+                                 start = c(year(min(.x$date)), month(min(.x$date))), frequency = 12)),
+      model = map(ts_format, ~ seas(.x)),
+      adjs = map(model, ~ final(.x))) %>%
+    unnest(data) %>%
+    group_by(série) %>%
+    mutate(
+      adjs = rep(adjs[[1]])) %>%
+    select(date, série, values, adjs)
+    
+  # ------
+  
+    df_adjs  %>% # Plot orginal and adjusted series
+    pivot_longer(cols = c(values, adjs), names_to = "tipo", values_to = "valor_plot") %>%
+    ggplot(aes(x = date, y = valor_plot, color = tipo)) +
+    geom_line() +
+    facet_wrap(~série, scales = "free_y") +
+    theme_minimal() +
+    labs(title = "Séries Originais vs Dessazonalizadas", x = "Data", y = "Valor")
+  
+  # Final data frame ------
+    
+    df_BSTS_out <- 
+      df_adjs %>%
+      select(date, série, adjs) %>%
+      pivot_wider(
+        names_from = série,
+        values_from = adjs) %>%
+      mutate(
+        across(
+          soja_ipca:fert_index,
+          ~ (.x/.x[1]) * 100))
+  
+  # ------
+  
+    df_BSTS_out %>% # Plot indexed series
+      pivot_longer(cols = !date, names_to = "tipo", values_to = "valor_plot") %>%
+      ggplot(aes(x = date, y = valor_plot, color = tipo)) +
+      geom_line() +
+      facet_wrap(~tipo, scales = "free_y") +
+      theme_minimal() +
+      labs(title = "Séries", x = "Data", y = "Valor")
+  
+  
+  # Saving ------
+  
+  write.csv(df_BSTS_out, file = "data/csv/dados_BSTS.csv")      
+  
+  
+  
   
   

@@ -68,6 +68,6 @@
       arrange(id_municipio)
 
     
-      write.csv(soja_data, file = "data/csv/df_parecer_0.csv")      
+      write.csv(soja_data, file = "data/csv/dados_PAM_soja.csv")      
 
  
