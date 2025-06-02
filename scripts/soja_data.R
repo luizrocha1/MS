@@ -57,16 +57,26 @@
  
  query <- "SELECT * FROM `basedosdados.br_ibge_pam.lavoura_temporaria`"
  df <- basedosdados::read_sql(query)
-  
+ 
+ biomas <- 
+   Bioma_Predominante_por_Municipio_2024 %>%
+   rename(id_municipio = Geocódigo, bioma = `Bioma predominante`) %>%
+   select(id_municipio, bioma) %>%
+   mutate(id_municipio = as.character(id_municipio))
+   
   # Treating data -----
  
     soja_data <- 
       df %>%
       filter(produto == "Soja (em grão)", !is.na(area_plantada)) %>%
-      select(ano, id_municipio, valor_producao, quantidade_produzida, area_plantada) %>% 
-      mutate(l_p_medio = log(valor_producao / quantidade_produzida)) %>% 
-      arrange(id_municipio)
+      select(ano, id_municipio, valor_producao, quantidade_produzida, area_plantada) %>%
+      left_join(., biomas) %>% 
+      mutate(p_medio = valor_producao / quantidade_produzida,
+             amazonia = case_when(
+               bioma == "Amazônia" ~ 1,
+               TRUE ~ 0)) 
 
+ # Saving final data -----
     
       write.csv(soja_data, file = "data/csv/dados_PAM_soja.csv")      
 
